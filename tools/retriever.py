@@ -1,15 +1,16 @@
 from tools.pdf_parser import PDFParser
-from vectorstore.embedding import EmbeddingModel
-from vectorstore.faiss_store import FaissStore
+from vectorstore.faiss.embedding import EmbeddingModel
+from vectorstore.faiss.faiss_store import FaissStore
 
 
 class Retriever:
 
-    def __init__(self):
+    def __init__(self, backend="faiss"):
+        self.backend = backend
         self.parser = PDFParser()
-        self.embedding_model = EmbeddingModel()
-        self.store = FaissStore()
-
+        if backend == "faiss":
+            self.embedding_model = EmbeddingModel()
+            self.store = FaissStore()
         # 検索結果との対応を保持
         self.documents = []
 
@@ -62,12 +63,18 @@ Content:
         }
     )
 
-        embeddings = self.embedding_model.embed_documents(all_chunks)
-
-        self.store.build(
+        if self.backend == "faiss":
+            embeddings = self.embedding_model.embed_documents(all_chunks)
+            self.store.build(
             embeddings,
             self.documents,
         )
+        elif self.backend == "llamaindex":
+            from vectorstore.llamaindex.builder import LlamaIndexBuilder
+            builder = LlamaIndexBuilder()
+            self.index = builder.build(
+        self.documents,
+    )
 
     def retrieve(self,
     topic,
@@ -82,11 +89,16 @@ Question:
 """
         
 
-        query_embedding = self.embedding_model.embed(question)
-
-        results = self.store.search(
+        if self.backend == "faiss":
+            query_embedding = self.embedding_model.embed(query)
+            results = self.store.search(
             query_embedding,
             k=k,
         )
-
-        return results
+            return results
+        elif self.backend == "llamaindex":
+            from vectorstore.llamaindex.retriever import LlamaRetriever
+            retriever = LlamaRetriever(
+        self.index,
+    )
+            return retriever.retrieve(query)

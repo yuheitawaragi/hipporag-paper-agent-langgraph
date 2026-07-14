@@ -1,6 +1,6 @@
 from graph import graph
 import os
-from evaluate_ragas import evaluate_rag
+#from evaluate_ragas import evaluate_rag
 
 query = input("Search keyword: ")
 
@@ -13,18 +13,18 @@ state = {
 
 result = graph.invoke(state)
 
-score = evaluate_rag(
-    query=question,
-    retrieved_contexts=result["retrieved"],
-    answer=result["answer"],
-    openai_api_key=os.environ["OPENAI_API_KEY"],
-)
+#score = evaluate_rag(
+    #query=question,
+    #retrieved_contexts=result["retrieved"],
+    #answer=result["answer"],
+    #openai_api_key=os.environ["OPENAI_API_KEY"],
+#)
 
 print("\n==========================")
 print("RAGAS")
 print("==========================")
 
-print(score)
+#print(score)
 
 print("\n==========================")
 print("Summary")

@@ -1,44 +1,50 @@
 from tools.pdf_parser import PDFParser
-from vectorstore.embedding import EmbeddingModel
-from vectorstore.faiss_store import FaissStore
+from vectorstore.faiss.embedding import EmbeddingModel
+from vectorstore.faiss.faiss_store import FaissStore
 
 
 class Indexer:
 
-    def __init__(self):
+    def __init__(self, backend="faiss"):
+
+        self.backend = backend
 
         self.parser = PDFParser()
 
-        self.embedding_model = EmbeddingModel()
+        if backend == "faiss":
+            self.embedding_model = EmbeddingModel()
 
     def build_index(
-        self,
-        pdf_url,
-        filename="paper.pdf",
-    ):
-
+    self,
+    pdf_url,
+    filename="paper.pdf",
+):
         pdf_path = self.parser.download_pdf(
-            pdf_url,
-            filename,
-        )
-
+        pdf_url,
+        filename,
+    )
         pages = self.parser.extract_pages(
-            pdf_path,
-        )
-
+        pdf_path,
+    )
         chunks = self.parser.chunk_pages(
-            pages,
-        )
-
-        embeddings = self.embedding_model.embed_documents(
+        pages,
+    )
+        if self.backend == "faiss":
+            embeddings = self.embedding_model.embed_documents(
             chunks,
         )
-
-        store = FaissStore()
-
-        store.build(
+            store = FaissStore()
+            store.build(
             embeddings,
             chunks,
         )
-
+        elif self.backend == "llamaindex":
+            from vectorstore.llamaindex.builder import LlamaIndexBuilder
+            builder = LlamaIndexBuilder()
+            store = builder.build(
+        chunks,
+    )
+        else:
+            raise ValueError(f"Unknown backend: {self.backend}")
+        
         return store, chunks
