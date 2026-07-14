@@ -11,6 +11,10 @@ class Retriever:
         if backend == "faiss":
             self.embedding_model = EmbeddingModel()
             self.store = FaissStore()
+        elif backend == "llamaindex":
+            self.index = None
+        elif backend == "property_graph":
+            self.index = None
         # 検索結果との対応を保持
         self.documents = []
 
@@ -73,8 +77,14 @@ Content:
             from vectorstore.llamaindex.builder import LlamaIndexBuilder
             builder = LlamaIndexBuilder()
             self.index = builder.build(
-        self.documents,
+        all_chunks
     )
+        elif self.backend == "property_graph":
+            from vectorstore.llamaindex.property_graph import PropertyGraphStore
+            store = PropertyGraphStore()
+            self.index = store.build(
+                all_chunks
+            )
 
     def retrieve(self,
     topic,
@@ -102,3 +112,10 @@ Question:
         self.index,
     )
             return retriever.retrieve(query)
+        elif self.backend == "property_graph":
+            retriever = self.index.as_retriever(
+                similarity_top_k=k
+            )
+            return retriever.retrieve(
+                query
+            )

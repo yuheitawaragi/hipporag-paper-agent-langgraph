@@ -3,7 +3,8 @@ from tools.retriever import Retriever
 
 def index_node(state):
 
-    retriever = Retriever(backend="llamaindex")
+    #retriever = Retriever(backend="llamaindex")
+    retriever = Retriever(backend="property_graph")
 
     retriever.build_index(
         state["papers"]

@@ -39,4 +39,7 @@ print("==========================")
 print(result["answer"])
 
 print(type(result["retrieved"]))
-print(result["retrieved"])
+
+print(len(result["retrieved"]))
+
+print(result["retrieved"][0])

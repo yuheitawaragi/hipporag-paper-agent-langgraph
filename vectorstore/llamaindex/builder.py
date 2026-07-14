@@ -17,7 +17,7 @@ class LlamaIndexBuilder:
     "page": chunk["page"],
     "chunk_id": chunk["chunk_id"],
     "title": chunk.get("title",""),
-    "authors": chunk.get("authors",""),
+    "authors": chunk.get("authors",[]),
     "published": chunk.get("published",""),
     "pdf_url": chunk.get("pdf_url",""),
 },

@@ -15,35 +15,108 @@ class RAG:
     ):
         self.model = model
 
+
     def answer(
         self,
         question,
         contexts,
     ):
+
         context = ""
+
         for doc in contexts:
+
+            # LlamaIndex NodeWithScore
+            if hasattr(doc, "node"):
+
+                node = doc.node
+
+                title = node.metadata.get(
+                    "title",
+                    "Unknown"
+                )
+
+                authors = node.metadata.get(
+                    "authors",
+                    []
+                )
+
+                published = node.metadata.get(
+                    "published",
+                    ""
+                )
+
+                page = node.metadata.get(
+                    "page",
+                    ""
+                )
+
+                pdf_url = node.metadata.get(
+                    "pdf_url",
+                    ""
+                )
+
+                text = node.text
+
+
+            # FAISS dict
+            else:
+
+                title = doc.get(
+                    "title",
+                    "Unknown"
+                )
+
+                authors = doc.get(
+                    "authors",
+                    []
+                )
+
+                published = doc.get(
+                    "published",
+                    ""
+                )
+
+                page = doc.get(
+                    "page",
+                    ""
+                )
+
+                pdf_url = doc.get(
+                    "pdf_url",
+                    ""
+                )
+
+                text = doc.get(
+                    "text",
+                    ""
+                )
+
+
             context += f"""
 Title:
-{doc["title"]}
+{title}
 
 Authors:
-{", ".join(doc["authors"])}
+{", ".join(authors)}
 
 Published:
-{doc["published"]}
+{published}
 
 Page:
-{doc["page"]}
+{page}
 
 PDF:
-{doc["pdf_url"]}
+{pdf_url}
 
 Content:
-{doc["text"]}
+{text}
 
 ------------------------
 """
-            prompt = f"""
+
+
+        prompt = f"""
 You are an AI research assistant.
 
 Use ONLY the retrieved paper contents.
@@ -52,24 +125,26 @@ If the answer cannot be found in the retrieved papers, reply exactly:
 
 "I don't know."
 
-Instructions
+Instructions:
 
 - Use only the retrieved papers.
 - Do not hallucinate.
 - Combine information from multiple papers when appropriate.
 - After every important statement, cite the paper title in parentheses.
 - At the end, provide a References section.
-- List each referenced paper only once in the References section, even if it is cited multiple times in the answer.
+- List each referenced paper only once in the References section.
 
-Retrieved Papers
+Retrieved Papers:
 
 {context}
 
-Question
+
+Question:
 
 {question}
 
-Output format
+
+Output format:
 
 ## Answer
 
@@ -90,21 +165,8 @@ Published:
 
 PDF URL:
 ...
-
-2.
-
-Title:
-...
-
-Authors:
-...
-
-Published:
-...
-
-PDF URL:
-...
 """
+
 
         response = client.chat.completions.create(
             model=self.model,

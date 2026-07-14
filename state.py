@@ -1,9 +1,10 @@
-from typing import TypedDict, Any
+from typing import TypedDict, Any, Annotated
+from operator import add
 
 
 class AgentState(TypedDict):
 
-    # User Input
+    # User
     query: str
     question: str
 
@@ -16,8 +17,8 @@ class AgentState(TypedDict):
     # Index
     retriever: Any
 
-    # Retrieve
-    retrieved: list
+    # Retrieval
+    retrieved: Annotated[list, add]
 
-    # Final Answer
+    # Answer
     answer: str

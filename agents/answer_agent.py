@@ -9,12 +9,17 @@ def answer_node(state):
 
     print(type(state["retrieved"]))
     print(type(state["retrieved"][0]))
-    print(state["retrieved"][0])
+
+    print(
+        state["retrieved"][0]["text"][:200]
+    )
+
 
     answer = rag.answer(
         question=state["question"],
         contexts=state["retrieved"],
     )
+
 
     return {
         "answer": answer
