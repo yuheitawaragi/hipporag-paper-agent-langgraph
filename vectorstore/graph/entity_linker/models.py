@@ -2,8 +2,6 @@ from dataclasses import dataclass
 
 
 @dataclass
-class LinkedEntity:
-
-    original: str
-
+class Entity:
+    mention: str
     canonical: str
