@@ -1,7 +1,7 @@
 from tools.pdf_parser import PDFParser
 from vectorstore.faiss.embedding import EmbeddingModel
 from vectorstore.faiss.faiss_store import FaissStore
-
+from vectorstore.qdrant.qdrant_store import QdrantStore
 
 class Retriever:
 
@@ -15,6 +15,8 @@ class Retriever:
             self.index = None
         elif backend == "property_graph":
             self.index = None
+        elif backend == "qdrant":
+            self.store = QdrantStore()
         # 検索結果との対応を保持
         self.documents = []
 
@@ -85,6 +87,16 @@ Content:
             self.index = store.build(
                 all_chunks
             )
+        elif self.backend == "qdrant":
+
+            embeddings = self.embedding_model.embed_documents(
+                all_chunks
+            )
+
+            self.store.build(
+                embeddings,
+                self.documents,
+            )
 
     def retrieve(self,
     topic,
@@ -118,4 +130,12 @@ Question:
             )
             return retriever.retrieve(
                 query
+            )
+        elif self.backend == "qdrant":
+
+            query_embedding = self.embedding_model.embed(query)
+
+            return self.store.search(
+                query_embedding,
+                k=k,
             )

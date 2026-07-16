@@ -1,6 +1,7 @@
 from tools.pdf_parser import PDFParser
 from vectorstore.faiss.embedding import EmbeddingModel
 from vectorstore.faiss.faiss_store import FaissStore
+from vectorstore.qdrant.qdrant_store import QdrantStore
 
 
 class Indexer:
@@ -44,6 +45,16 @@ class Indexer:
             store = builder.build(
         chunks,
     )
+        elif self.backend == "qdrant":
+
+            embeddings = self.embedding_model.embed_documents(chunks)
+
+            store = QdrantStore()
+
+            store.build(
+                embeddings,
+                chunks,
+            )
         else:
             raise ValueError(f"Unknown backend: {self.backend}")
         
