@@ -31,7 +31,7 @@ class GraphRetriever:
 
 
         # =====================
-        # 1. Personalized PageRank
+        # 1. PPR ranking
         # =====================
 
         ranked_entities = self.ppr.top_k(
@@ -41,10 +41,10 @@ class GraphRetriever:
 
 
         # =====================
-        # 2. 上位entityからgraph探索
+        # 2. 周辺triples取得
         # =====================
 
-        for entity, score in ranked_entities:
+        for entity, entity_score in ranked_entities:
 
 
             neighbors = (
@@ -65,23 +65,21 @@ class GraphRetriever:
                 )
 
 
-                if not relations:
-                    continue
-
                 for relation in relations:
+
 
                     results.append(
                         {
                             "subject": entity,
+
                             "relation": relation,
+
                             "object": neighbor,
-                            "score": score
+
+                            # PPRで得たentity重要度
+                            "entity_score": entity_score
                         }
                     )
-
-
-
-                
 
 
         return results
@@ -93,21 +91,15 @@ class GraphRetriever:
         query_entity,
         top_k=5
     ):
-        """
-        Query entityからGraph Retrieval
-        """
 
 
-        # entity linkerがある場合
         if self.entity_linker:
-
 
             query_entity = (
                 self.entity_linker.link_entity(
                     query_entity
                 )
             )
-
 
 
         return self.retrieve_from_entities(

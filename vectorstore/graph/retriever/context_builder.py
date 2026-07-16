@@ -26,13 +26,13 @@ class ContextBuilder:
 
 
         # =====================
-        # 1. score順に並べる
+        # 1. entity_score順
         # =====================
 
         triples = sorted(
             triples,
             key=lambda x: x.get(
-                "score",
+                "entity_score",
                 0
             ),
             reverse=True
@@ -79,8 +79,8 @@ Relation:
 Connected Entity:
 {triple["object"]}
 
-Importance:
-{triple.get("score",0):.4f}
+Entity Importance:
+{triple.get("entity_score",0):.4f}
 """
             )
 
