@@ -4,93 +4,84 @@ class GraphRetriever:
     def __init__(
         self,
         graph_store,
+        ppr,
         entity_linker=None
     ):
 
         self.graph_store = graph_store
 
+        self.ppr = ppr
+
         self.entity_linker = entity_linker
 
 
 
-    def retrieve_entity(
+    def retrieve_from_entities(
         self,
-        entity,
-        depth=1
+        entities,
+        top_k=5
     ):
         """
-        entity周辺探索
+        PPRで重要entityを取得し、
+        周辺triplesを取得
         """
 
 
         results = []
 
 
-        if entity not in self.graph_store.graph:
+        # =====================
+        # 1. Personalized PageRank
+        # =====================
 
-            return results
-
-
-
-        current_nodes = [
-            entity
-        ]
-
-
-        visited = set()
+        ranked_entities = self.ppr.top_k(
+            entities,
+            k=top_k
+        )
 
 
+        # =====================
+        # 2. 上位entityからgraph探索
+        # =====================
 
-        for _ in range(depth):
-
-            next_nodes=[]
-
-
-            for node in current_nodes:
+        for entity, score in ranked_entities:
 
 
-                if node in visited:
-                    continue
+            neighbors = (
+                self.graph_store.neighbors(
+                    entity
+                )
+            )
 
 
-                visited.add(node)
+            for neighbor in neighbors:
 
 
-
-                neighbors = (
-                    self.graph_store.neighbors(
-                        node
+                relations = (
+                    self.graph_store.relations(
+                        entity,
+                        neighbor
                     )
                 )
 
 
-                for neighbor in neighbors:
+                if not relations:
+                    continue
 
-
-                    relation = (
-                        self.graph_store.relations(
-                            node,
-                            neighbor
-                        )
-                    )
-
+                for relation in relations:
 
                     results.append(
                         {
-                            "subject": node,
-                            "relation": relation[0],
-                            "object": neighbor
+                            "subject": entity,
+                            "relation": relation,
+                            "object": neighbor,
+                            "score": score
                         }
                     )
 
 
-                    next_nodes.append(
-                        neighbor
-                    )
 
-
-            current_nodes = next_nodes
-
+                
 
 
         return results
@@ -100,15 +91,26 @@ class GraphRetriever:
     def retrieve(
         self,
         query_entity,
-        depth=1
+        top_k=5
     ):
-
         """
-        Query entityからgraph検索
+        Query entityからGraph Retrieval
         """
 
 
-        return self.retrieve_entity(
-            query_entity,
-            depth
+        # entity linkerがある場合
+        if self.entity_linker:
+
+
+            query_entity = (
+                self.entity_linker.link_entity(
+                    query_entity
+                )
+            )
+
+
+
+        return self.retrieve_from_entities(
+            [query_entity],
+            top_k
         )

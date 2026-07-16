@@ -1,29 +1,95 @@
 class ContextBuilder:
 
 
+    def __init__(
+        self,
+        max_contexts=20
+    ):
+
+        self.max_contexts = max_contexts
+
+
+
     def build(
         self,
         triples
     ):
         """
-        triplesをLLM入力形式へ変換
+        Graph Retrieval結果を
+        LLM用contextへ変換
         """
+
+
+        if not triples:
+            return ""
+
+
+
+        # =====================
+        # 1. score順に並べる
+        # =====================
+
+        triples = sorted(
+            triples,
+            key=lambda x: x.get(
+                "score",
+                0
+            ),
+            reverse=True
+        )
+
 
 
         contexts = []
 
+        seen = set()
+
+
+
+        # =====================
+        # 2. 重複除去
+        # =====================
 
         for triple in triples:
 
+
+            key = (
+                triple["subject"],
+                triple["relation"],
+                triple["object"]
+            )
+
+
+            if key in seen:
+                continue
+
+
+            seen.add(key)
+
+
+
             contexts.append(
                 f"""
+Entity:
 {triple["subject"]}
- -- {triple["relation"]} -->
+
+Relation:
+{triple["relation"]}
+
+Connected Entity:
 {triple["object"]}
+
+Importance:
+{triple.get("score",0):.4f}
 """
             )
 
 
-        return "\n".join(
+            if len(contexts) >= self.max_contexts:
+                break
+
+
+
+        return "\n\n".join(
             contexts
         )
