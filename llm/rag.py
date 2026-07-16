@@ -170,6 +170,7 @@ PDF URL:
 
         response = client.chat.completions.create(
             model=self.model,
+            temperature=0,
             messages=[
                 {
                     "role": "user",
