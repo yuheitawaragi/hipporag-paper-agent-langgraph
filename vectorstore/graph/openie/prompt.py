@@ -6,11 +6,11 @@ Return ONLY valid JSON.
 Format:
 
 [
-    {
+    {{
         "subject": "...",
         "predicate": "...",
         "object": "..."
-    }
+    }}
 ]
 
 Passage:

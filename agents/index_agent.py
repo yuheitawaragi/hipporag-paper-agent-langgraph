@@ -1,17 +1,23 @@
 from tools.retriever import Retriever
 
+from vectorstore.faiss.embedding import EmbeddingModel
+
 from vectorstore.graph.openie.extractor import OpenIEExtractor
 from vectorstore.graph.openie.parser import TripleParser
 
 from vectorstore.graph.graph_builder.builder import GraphBuilder
 from vectorstore.graph.graph_store.store import GraphStore
+
+from vectorstore.graph.entity_linker.store import EntityStore
+from vectorstore.graph.entity_linker.linker import EntityLinker
+
 from vectorstore.graph.ppr.pagerank import PersonalizedPageRank
 from vectorstore.graph.retriever.graph_retriever import GraphRetriever
 
+from vectorstore.graph.entity_linker.embedder import EntityEmbedder
 
 
 def index_node(state):
-
 
     # =====================
     # Vector Index
@@ -25,8 +31,6 @@ def index_node(state):
         state["papers"]
     )
 
-
-
     # =====================
     # Graph Index
     # =====================
@@ -35,30 +39,29 @@ def index_node(state):
 
     parser = TripleParser()
 
-
     triples = []
 
-
     for paper in state["papers"]:
-
 
         raw = extractor.extract(
             paper["summary"]
         )
 
-
         paper_triples = parser.parse(
             raw
         )
 
+        print("=" * 50)
+        print(raw)
+        print(paper_triples)
 
         triples.extend(
             paper_triples
         )
 
-
-
+    # =====================
     # Graph構築
+    # =====================
 
     builder = GraphBuilder()
 
@@ -66,6 +69,13 @@ def index_node(state):
         triples
     )
 
+    print(
+        f"Graph Nodes : {graph.number_of_nodes()}"
+    )
+
+    print(
+        f"Graph Edges : {graph.number_of_edges()}"
+    )
 
     store = GraphStore()
 
@@ -73,17 +83,46 @@ def index_node(state):
         graph
     )
 
+    # =====================
+    # Entity Index
+    # =====================
+
+    entities = store.nodes()
+
+    print(f"Entity Count : {len(entities)}")
+
+    entity_embedder = EntityEmbedder()
+
+    # Entity全体を一度にEmbedding
+    entity_embeddings = entity_embedder.embed(
+        entities
+    )
+
+    entity_store = EntityStore(
+        entities,
+        entity_embeddings
+    )
+
+    entity_linker = EntityLinker(
+        entity_store,
+        entity_embedder
+    )
+
+    
+
+    # =====================
+    # Personalized PageRank
+    # =====================
 
     ppr = PersonalizedPageRank(
         store
     )
 
-
     graph_retriever = GraphRetriever(
         store,
-        ppr
+        ppr,
+        entity_linker
     )
-
 
     return {
 

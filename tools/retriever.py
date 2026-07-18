@@ -16,6 +16,7 @@ class Retriever:
         elif backend == "property_graph":
             self.index = None
         elif backend == "qdrant":
+            self.embedding_model = EmbeddingModel()
             self.store = QdrantStore()
         # 検索結果との対応を保持
         self.documents = []
