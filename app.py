@@ -1,6 +1,19 @@
 from graph import graph
 import os
-#from evaluate_ragas import evaluate_rag
+
+# from evaluate_ragas import evaluate_rag
+
+
+print("=" * 50)
+print("Paper Search AI")
+print("=" * 50)
+
+mode = input(
+    "Mode (rag / hipporag / hybrid) [hybrid]: "
+).strip().lower()
+
+if mode == "":
+    mode = "hybrid"
 
 query = input("Search keyword: ")
 
@@ -9,22 +22,28 @@ question = input("Question: ")
 state = {
     "query": query,
     "question": question,
+    "mode": mode,
 }
 
 result = graph.invoke(state)
 
-#score = evaluate_rag(
-    #query=question,
-    #retrieved_contexts=result["retrieved"],
-    #answer=result["answer"],
-    #openai_api_key=os.environ["OPENAI_API_KEY"],
-#)
+
+# ==========================
+# RAGAS (optional)
+# ==========================
+
+# score = evaluate_rag(
+#     query=question,
+#     retrieved_contexts=result["retrieved"],
+#     answer=result["answer"],
+#     openai_api_key=os.environ["OPENAI_API_KEY"],
+# )
+
 
 print("\n==========================")
-print("RAGAS")
+print(f"Mode : {mode}")
 print("==========================")
 
-#print(score)
 
 print("\n==========================")
 print("Summary")
@@ -32,14 +51,28 @@ print("==========================")
 
 print(result["summary"])
 
+
 print("\n==========================")
 print("Answer")
 print("==========================")
 
 print(result["answer"])
 
+
+print("\n==========================")
+print("Retrieved Contexts")
+print("==========================")
+
 print(type(result["retrieved"]))
 
 print(len(result["retrieved"]))
 
-print(result["retrieved"][0])
+if len(result["retrieved"]) > 0:
+    print(result["retrieved"][0])
+
+
+print("\n==========================")
+print("RAGAS")
+print("==========================")
+
+# print(score)

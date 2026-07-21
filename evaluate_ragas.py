@@ -5,7 +5,7 @@ from ragas.metrics import (
     Faithfulness,
     AnswerRelevancy,
     ContextPrecision,
-    ContextRecall,
+    ContextRecall
 )
 
 from langchain_openai import ChatOpenAI
@@ -65,8 +65,8 @@ def evaluate_rag(
         metrics=[
             Faithfulness(),
             AnswerRelevancy(),
-            #ContextPrecision(),
-            #ContextRecall(),
+            ContextPrecision(),
+            ContextRecall(),
         ],
         llm=evaluator_llm,
     )

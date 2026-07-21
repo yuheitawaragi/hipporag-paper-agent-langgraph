@@ -1,7 +1,5 @@
 from tools.retriever import Retriever
 
-from vectorstore.faiss.embedding import EmbeddingModel
-
 from vectorstore.graph.openie.extractor import OpenIEExtractor
 from vectorstore.graph.openie.parser import TripleParser
 
@@ -10,124 +8,135 @@ from vectorstore.graph.graph_store.store import GraphStore
 
 from vectorstore.graph.entity_linker.store import EntityStore
 from vectorstore.graph.entity_linker.linker import EntityLinker
+from vectorstore.graph.entity_linker.embedder import EntityEmbedder
 
 from vectorstore.graph.ppr.pagerank import PersonalizedPageRank
 from vectorstore.graph.retriever.graph_retriever import GraphRetriever
 
-from vectorstore.graph.entity_linker.embedder import EntityEmbedder
-
 
 def index_node(state):
 
-    # =====================
+    # =====================================
+    # mode
+    # rag
+    # hipporag
+    # hybrid
+    # =====================================
+
+    mode = state.get("mode", "hybrid")
+
+    result = {}
+
+    # =====================================
     # Vector Index
-    # =====================
+    # =====================================
 
-    retriever = Retriever(
-        backend="qdrant"
-    )
+    if mode in ["rag", "hybrid"]:
 
-    retriever.build_index(
-        state["papers"]
-    )
+        retriever = Retriever(
+            backend="qdrant"
+        )
 
-    # =====================
+        retriever.build_index(
+            state["papers"]
+        )
+
+        result["retriever"] = retriever
+
+    # =====================================
     # Graph Index
-    # =====================
+    # =====================================
 
-    extractor = OpenIEExtractor()
+    if mode in ["hipporag", "hybrid"]:
 
-    parser = TripleParser()
+        extractor = OpenIEExtractor()
 
-    triples = []
+        parser = TripleParser()
 
-    for paper in state["papers"]:
+        triples = []
 
-        raw = extractor.extract(
-            paper["summary"]
+        for paper in state["papers"]:
+
+            raw = extractor.extract(
+                paper["summary"]
+            )
+
+            paper_triples = parser.parse(
+                raw
+            )
+
+            print("=" * 50)
+            print(raw)
+            print(paper_triples)
+
+            triples.extend(
+                paper_triples
+            )
+
+        # =====================================
+        # Graph構築
+        # =====================================
+
+        builder = GraphBuilder()
+
+        graph = builder.build(
+            triples
         )
 
-        paper_triples = parser.parse(
-            raw
+        print(
+            f"Graph Nodes : {graph.number_of_nodes()}"
         )
 
-        print("=" * 50)
-        print(raw)
-        print(paper_triples)
-
-        triples.extend(
-            paper_triples
+        print(
+            f"Graph Edges : {graph.number_of_edges()}"
         )
 
-    # =====================
-    # Graph構築
-    # =====================
+        store = GraphStore()
 
-    builder = GraphBuilder()
+        store.add_graph(
+            graph
+        )
 
-    graph = builder.build(
-        triples
-    )
+        # =====================================
+        # Entity Index
+        # =====================================
 
-    print(
-        f"Graph Nodes : {graph.number_of_nodes()}"
-    )
+        entities = store.nodes()
 
-    print(
-        f"Graph Edges : {graph.number_of_edges()}"
-    )
+        print(
+            f"Entity Count : {len(entities)}"
+        )
 
-    store = GraphStore()
+        entity_embedder = EntityEmbedder()
 
-    store.add_graph(
-        graph
-    )
+        entity_embeddings = entity_embedder.embed(
+            entities
+        )
 
-    # =====================
-    # Entity Index
-    # =====================
+        entity_store = EntityStore(
+            entities,
+            entity_embeddings
+        )
 
-    entities = store.nodes()
+        entity_linker = EntityLinker(
+            entity_store,
+            entity_embedder
+        )
 
-    print(f"Entity Count : {len(entities)}")
+        # =====================================
+        # Personalized PageRank
+        # =====================================
 
-    entity_embedder = EntityEmbedder()
+        ppr = PersonalizedPageRank(
+            store
+        )
 
-    # Entity全体を一度にEmbedding
-    entity_embeddings = entity_embedder.embed(
-        entities
-    )
+        graph_retriever = GraphRetriever(
+            store,
+            ppr,
+            entity_linker
+        )
 
-    entity_store = EntityStore(
-        entities,
-        entity_embeddings
-    )
+        result["graph_retriever"] = graph_retriever
 
-    entity_linker = EntityLinker(
-        entity_store,
-        entity_embedder
-    )
-
-    
-
-    # =====================
-    # Personalized PageRank
-    # =====================
-
-    ppr = PersonalizedPageRank(
-        store
-    )
-
-    graph_retriever = GraphRetriever(
-        store,
-        ppr,
-        entity_linker
-    )
-
-    return {
-
-        "retriever": retriever,
-
-        "graph_retriever": graph_retriever
-
-    }
+    return result

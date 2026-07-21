@@ -2,110 +2,106 @@ def retrieve_node(state):
 
     contexts = []
 
-
     # ======================
     # 1. Vector Retrieval
     # ======================
 
-    results = state["retriever"].retrieve(
-        topic=state["query"],
-        question=state["question"],
-    )
+    if "retriever" in state:
 
+        results = state["retriever"].retrieve(
+            topic=state["query"],
+            question=state["question"],
+        )
 
-    for node in results:
+        for node in results:
 
+            # ======================
+            # Qdrant / FAISS形式
+            # ======================
 
-        # ======================
-        # Qdrant / FAISS形式
-        # ======================
+            if isinstance(node, dict):
 
-        if isinstance(node, dict):
+                contexts.append(
+                    {
+                        "text": node.get(
+                            "text",
+                            ""
+                        ),
 
-            contexts.append(
-                {
-                    "text": node.get(
-                        "text",
-                        ""
-                    ),
+                        "title": node.get(
+                            "title",
+                            "Unknown"
+                        ),
 
-                    "title": node.get(
-                        "title",
-                        "Unknown"
-                    ),
+                        "authors": node.get(
+                            "authors",
+                            []
+                        ),
 
-                    "authors": node.get(
-                        "authors",
-                        []
-                    ),
+                        "published": node.get(
+                            "published",
+                            ""
+                        ),
 
-                    "published": node.get(
-                        "published",
-                        ""
-                    ),
+                        "page": node.get(
+                            "page",
+                            ""
+                        ),
 
-                    "page": node.get(
-                        "page",
-                        ""
-                    ),
+                        "pdf_url": node.get(
+                            "pdf_url",
+                            ""
+                        ),
 
-                    "pdf_url": node.get(
-                        "pdf_url",
-                        ""
-                    ),
+                        "score": node.get(
+                            "score",
+                            0
+                        ),
 
-                    "score": node.get(
-                        "score",
-                        0
-                    ),
+                        "source": "vector",
+                    }
+                )
 
-                    "source": "vector"
-                }
-            )
+            # ======================
+            # LlamaIndex形式
+            # ======================
 
+            else:
 
-        # ======================
-        # LlamaIndex形式
-        # ======================
+                contexts.append(
+                    {
+                        "text": node.node.text,
 
-        else:
+                        "title": node.node.metadata.get(
+                            "title",
+                            "Unknown"
+                        ),
 
-            contexts.append(
-                {
-                    "text": node.node.text,
+                        "authors": node.node.metadata.get(
+                            "authors",
+                            []
+                        ),
 
-                    "title": node.node.metadata.get(
-                        "title",
-                        "Unknown"
-                    ),
+                        "published": node.node.metadata.get(
+                            "published",
+                            ""
+                        ),
 
-                    "authors": node.node.metadata.get(
-                        "authors",
-                        []
-                    ),
+                        "page": node.node.metadata.get(
+                            "page",
+                            ""
+                        ),
 
-                    "published": node.node.metadata.get(
-                        "published",
-                        ""
-                    ),
+                        "pdf_url": node.node.metadata.get(
+                            "pdf_url",
+                            ""
+                        ),
 
-                    "page": node.node.metadata.get(
-                        "page",
-                        ""
-                    ),
+                        "score": node.score,
 
-                    "pdf_url": node.node.metadata.get(
-                        "pdf_url",
-                        ""
-                    ),
-
-                    "score": node.score,
-
-                    "source": "vector"
-                }
-            )
-
-
+                        "source": "vector",
+                    }
+                )
 
     # ======================
     # 2. Graph Retrieval
@@ -113,13 +109,11 @@ def retrieve_node(state):
 
     if "graph_retriever" in state:
 
-
         graph_results = (
             state["graph_retriever"].retrieve(
                 state["query"]
             )
         )
-
 
         for triple in graph_results:
 
@@ -138,11 +132,19 @@ def retrieve_node(state):
                         0
                     ),
 
-                    "source": "graph"
+                    "source": "graph",
                 }
             )
 
+    # ======================
+    # Sort by score
+    # ======================
 
+    contexts = sorted(
+        contexts,
+        key=lambda x: x.get("score", 0),
+        reverse=True,
+    )
 
     return {
         "retrieved": contexts
