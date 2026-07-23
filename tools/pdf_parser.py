@@ -15,13 +15,18 @@ class PDFParser:
         PDFをダウンロードして保存
         """
 
+        print(f"Downloading: {pdf_url}")
+
         pdf_path = self.save_dir / filename
 
         response = requests.get(pdf_url, timeout=60)
+        print(f"Status: {response.status_code}")
         response.raise_for_status()
 
         with open(pdf_path, "wb") as f:
             f.write(response.content)
+
+        print(f"Saved: {pdf_path}")
 
         return pdf_path
 

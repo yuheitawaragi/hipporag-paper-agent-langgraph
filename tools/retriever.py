@@ -26,7 +26,13 @@ class Retriever:
         all_chunks = []
         self.documents = []
 
+        print("Downloading PDFs...")
+
         for i, paper in enumerate(papers):
+
+            print(f"Paper {i+1}/{len(papers)}")
+            print(paper["title"])
+            print(paper["pdf_url"])
 
             filename = f"paper_{i}.pdf"
 
@@ -34,10 +40,15 @@ class Retriever:
                 paper["pdf_url"],
                 filename,
             )
+            print("Downloaded")
 
             pages = self.parser.extract_pages(pdf_path)
 
+            print(f"Pages: {len(pages)}")
+
             chunks = self.parser.chunk_pages(pages)
+
+            print(f"Chunks: {len(chunks)}")
 
             for chunk in chunks:
                 embedding_doc = {
@@ -90,9 +101,14 @@ Content:
             )
         elif self.backend == "qdrant":
 
+            print(f"Total chunks: {len(all_chunks)}")
+            print("Start embedding")
+
             embeddings = self.embedding_model.embed_documents(
                 all_chunks
             )
+
+            print("End embedding")
 
             self.store.build(
                 embeddings,

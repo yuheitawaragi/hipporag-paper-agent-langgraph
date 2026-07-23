@@ -2,6 +2,7 @@ import arxiv
 
 
 def search_papers(query: str, max_results: int = 5):
+    print(f"Search Query: {query}")
     client = arxiv.Client()
 
     search = arxiv.Search(
@@ -26,5 +27,8 @@ def search_papers(query: str, max_results: int = 5):
                 "entry_id": paper.entry_id,
             }
         )
+
+    for paper in papers:
+        print(paper["title"])
 
     return papers

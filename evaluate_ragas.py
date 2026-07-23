@@ -65,8 +65,8 @@ def evaluate_rag(
         metrics=[
             Faithfulness(),
             AnswerRelevancy(),
-            ContextPrecision(),
-            ContextRecall(),
+            #ContextPrecision(),
+            #ContextRecall(),
         ],
         llm=evaluator_llm,
     )

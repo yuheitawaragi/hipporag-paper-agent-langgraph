@@ -23,7 +23,7 @@ def index_node(state):
     # hybrid
     # =====================================
 
-    mode = state.get("mode", "hybrid")
+    mode = state.get("mode", "rag")
 
     result = {}
 
