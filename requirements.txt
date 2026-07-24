@@ -2,6 +2,8 @@
 # LLM
 # =========
 openai
+tiktoken
+
 
 # =========
 # Workflow
@@ -9,8 +11,8 @@ openai
 langgraph
 langchain
 langchain-openai
-
 langchain-community==0.3.31
+
 
 # =========
 # Retrieval
@@ -18,31 +20,48 @@ langchain-community==0.3.31
 qdrant-client
 faiss-cpu
 
+
 # =========
 # Embedding
 # =========
 sentence-transformers
+transformers
+torch
+
 
 # =========
 # Graph
 # =========
 networkx
 
+
 # =========
 # RAG
 # =========
 llama-index
+
 
 # =========
 # Evaluation
 # =========
 ragas==0.3.8
 
+
 # =========
 # Papers
 # =========
 arxiv
 pypdf
+
+
+# =========
+# NLP Entity Extraction
+# =========
+scispacy
+spacy
+
+https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/en_core_sci_sm-0.5.4.tar.gz
+
 
 # =========
 # Utility
@@ -51,4 +70,6 @@ numpy
 python-dotenv
 requests
 rich
-tiktoken
+
+frontend
+PyMuPDF

@@ -15,42 +15,59 @@ from vectorstore.graph.retriever.graph_retriever import GraphRetriever
 
 from vectorstore.fusion.fusion_retriever import FusionRetriever
 
-# ★追加
 from vectorstore.reranker.cross_encoder import CrossEncoderReranker
 
 from vectorstore.pdf.pdf_loader import PDFLoader
 from vectorstore.pdf.chunker import PDFChunker
 
 
+
 def index_node(state):
 
-    mode = state.get("mode", "rag")
+    mode = state.get(
+        "mode",
+        "rag"
+    )
+
 
     result = {}
 
     retriever = None
 
-    # =====================================
-    # Vector Index
-    # =====================================
 
-    if mode in ["rag", "hybrid"]:
+
+    # =================================================
+    # Dense Vector Index
+    # =================================================
+
+    if mode in [
+        "rag",
+        "hybrid"
+    ]:
 
         retriever = Retriever(
             backend="qdrant"
         )
 
+
         retriever.build_index(
             state["papers"]
         )
 
+
         result["retriever"] = retriever
 
-    # =====================================
-    # Graph Index
-    # =====================================
 
-    if mode in ["hipporag", "hybrid"]:
+
+    # =================================================
+    # Graph Index
+    # =================================================
+
+    if mode in [
+        "hipporag",
+        "hybrid"
+    ]:
+
 
         extractor = OpenIEExtractor()
 
@@ -60,87 +77,161 @@ def index_node(state):
 
         chunker = PDFChunker()
 
+
+
         triples = []
 
         chunks = []
 
+
         chunk_index = 0
+
+
 
         for paper in state["papers"]:
 
-            print("=" * 50)
-            print(paper["title"])
 
-            # ---------------------------------
-            # PDF全文取得
-            # ---------------------------------
+            print("=" * 50)
+            print(
+                paper["title"]
+            )
+
+
+
+            # -------------------------------
+            # PDF Load
+            # -------------------------------
 
             text = loader.load(
                 paper["pdf_path"]
             )
 
-            # ---------------------------------
-            # Chunk分割
-            # ---------------------------------
+
+            if not text:
+
+                print(
+                    "Skip empty PDF"
+                )
+
+                continue
+
+
+
+            # -------------------------------
+            # Chunk
+            # -------------------------------
 
             paper_chunks = chunker.split(
                 text
             )
 
-            # ---------------------------------
-            # ChunkごとにOpenIE
-            # ---------------------------------
+
 
             for chunk in paper_chunks:
 
-                chunk_id = f"chunk_{chunk_index}"
+
+                if not chunk.strip():
+
+                    continue
+
+
+
+                chunk_id = (
+                    f"chunk_{chunk_index}"
+                )
+
+
+
+                # -------------------------------
+                # OpenIE
+                # -------------------------------
 
                 raw = extractor.extract(
                     chunk
                 )
 
+
+                print(
+                    "RAW OPENIE RESULT"
+                )
+
+                print(raw)
+
+                print("="*50)
+
+
+
                 paper_triples = parser.parse(
                     raw
                 )
 
+
+
                 entities = set()
+
+
 
                 for triple in paper_triples:
 
+
+                    # 空除外
+                    if not triple.subject:
+                        continue
+
+                    if not triple.object:
+                        continue
+
+
+
                     entities.add(
-                        triple.subject
+                        triple.subject.strip()
                     )
 
                     entities.add(
-                        triple.object
+                        triple.object.strip()
                     )
+
+
 
                     triple.chunk_id = chunk_id
+
 
                     triples.append(
                         triple
                     )
 
+
+
                 chunks.append(
                     {
                         "chunk_id": chunk_id,
+
                         "text": chunk,
-                        "entities": list(entities)
+
+                        "entities": list(
+                            entities
+                        )
                     }
                 )
 
+
                 chunk_index += 1
 
-        # =====================================
-        # Graph構築
-        # =====================================
+
+
+
+        # =================================================
+        # Graph Build
+        # =================================================
 
         builder = GraphBuilder()
+
 
         graph = builder.build(
             triples,
             chunks
         )
+
 
         print(
             f"Graph Nodes : {graph.number_of_nodes()}"
@@ -150,45 +241,79 @@ def index_node(state):
             f"Graph Edges : {graph.number_of_edges()}"
         )
 
+
+
         store = GraphStore()
+
 
         store.add_graph(
             graph
         )
 
-        # =====================================
-        # Entity Index
-        # =====================================
 
-        entities = store.nodes()
+
+        # =================================================
+        # Entity Embedding
+        # =================================================
+
+        entities = list(
+            store.nodes()
+        )
+
+
+        # 空文字除外
+        entities = [
+            e.strip()
+            for e in entities
+            if isinstance(e, str)
+            and e.strip()
+        ]
+
+
 
         print(
             f"Entity Count : {len(entities)}"
         )
 
-        entity_embedder = EntityEmbedder()
 
-        entity_embeddings = entity_embedder.embed(
-            entities
+
+        entity_embedder = EntityEmbedder(
+            batch_size=500
         )
+
+
+        entity_embeddings = (
+            entity_embedder.embed(
+                entities
+            )
+        )
+
+
 
         entity_store = EntityStore(
             entities,
             entity_embeddings
         )
 
+
+
         entity_linker = EntityLinker(
             entity_store,
             entity_embedder
         )
 
-        # =====================================
-        # Personalized PageRank
-        # =====================================
+
+
+
+        # =================================================
+        # Graph Retriever
+        # =================================================
 
         ppr = PersonalizedPageRank(
             store
         )
+
+
 
         graph_retriever = GraphRetriever(
             store,
@@ -196,43 +321,69 @@ def index_node(state):
             entity_linker
         )
 
-        result["graph_retriever"] = graph_retriever
 
-        # =====================================
-        # Dense + Graph Fusion
-        # =====================================
+
+        result[
+            "graph_retriever"
+        ] = graph_retriever
+
+
+
+
+        # =================================================
+        # Hybrid Fusion
+        # =================================================
 
         if mode == "hybrid":
+
 
             fusion_method = state.get(
                 "fusion_method",
                 "rrf"
             )
 
+
             fusion_alpha = state.get(
                 "fusion_alpha",
                 0.6
             )
 
-            # ---------------------------------
-            # CrossEncoder Re-ranker
-            # ---------------------------------
+
 
             reranker = CrossEncoderReranker(
+
                 model_name=state.get(
+
                     "reranker_model",
+
                     "BAAI/bge-reranker-base"
+
                 )
+
             )
+
+
 
             fusion_retriever = FusionRetriever(
+
                 dense_retriever=retriever,
+
                 graph_retriever=graph_retriever,
+
                 method=fusion_method,
+
                 alpha=fusion_alpha,
+
                 reranker=reranker
+
             )
 
-            result["fusion_retriever"] = fusion_retriever
+
+
+            result[
+                "fusion_retriever"
+            ] = fusion_retriever
+
+
 
     return result
