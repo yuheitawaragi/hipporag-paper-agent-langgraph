@@ -1,12 +1,38 @@
+from vectorstore.query.entity_extractor.hybrid_extractor import (
+    HybridQueryEntityExtractor
+)
+
+
 def retrieve_node(state):
+
+    mode = state.get("mode", "rag")
 
     contexts = []
 
-    # ======================
-    # 1. Vector Retrieval
-    # ======================
+    # ==========================================
+    # Query Entity Extraction
+    # ==========================================
 
-    if "retriever" in state:
+    extractor = HybridQueryEntityExtractor()
+
+    query_entities = extractor.extract(
+        state["question"]
+    )
+
+    print("=" * 60)
+    print("Query")
+    print(state["question"])
+    print()
+
+    print("Extracted Entities")
+    print(query_entities)
+    print("=" * 60)
+
+    # =====================================================
+    # RAG (Dense Retrieval)
+    # =====================================================
+
+    if mode == "rag":
 
         results = state["retriever"].retrieve(
             topic=state["query"],
@@ -15,120 +41,99 @@ def retrieve_node(state):
 
         for node in results:
 
-            # ======================
-            # Qdrant / FAISS形式
-            # ======================
+            # ------------------------------------------
+            # Qdrant / FAISS
+            # ------------------------------------------
 
             if isinstance(node, dict):
 
                 contexts.append(
                     {
-                        "text": node.get(
-                            "text",
-                            ""
-                        ),
-
-                        "title": node.get(
-                            "title",
-                            "Unknown"
-                        ),
-
-                        "authors": node.get(
-                            "authors",
-                            []
-                        ),
-
-                        "published": node.get(
-                            "published",
-                            ""
-                        ),
-
-                        "page": node.get(
-                            "page",
-                            ""
-                        ),
-
-                        "pdf_url": node.get(
-                            "pdf_url",
-                            ""
-                        ),
-
-                        "score": node.get(
-                            "score",
-                            0
-                        ),
-
+                        "text": node.get("text", ""),
+                        "title": node.get("title", "Unknown"),
+                        "authors": node.get("authors", []),
+                        "published": node.get("published", ""),
+                        "page": node.get("page", ""),
+                        "pdf_url": node.get("pdf_url", ""),
+                        "score": node.get("score", 0),
                         "source": "vector",
                     }
                 )
 
-            # ======================
-            # LlamaIndex形式
-            # ======================
+            # ------------------------------------------
+            # LlamaIndex
+            # ------------------------------------------
 
             else:
 
                 contexts.append(
                     {
                         "text": node.node.text,
-
                         "title": node.node.metadata.get(
                             "title",
                             "Unknown"
                         ),
-
                         "authors": node.node.metadata.get(
                             "authors",
                             []
                         ),
-
                         "published": node.node.metadata.get(
                             "published",
                             ""
                         ),
-
                         "page": node.node.metadata.get(
                             "page",
                             ""
                         ),
-
                         "pdf_url": node.node.metadata.get(
                             "pdf_url",
                             ""
                         ),
-
                         "score": node.score,
-
                         "source": "vector",
                     }
                 )
 
-    # ======================
-    # 2. Graph Retrieval
-    # ======================
+    # =====================================================
+    # HippoRAG2
+    # =====================================================
 
-    if "graph_retriever" in state:
+    elif mode == "hipporag":
 
-        graph_results = (
-            state["graph_retriever"].retrieve(
-                state["query"]
-            )
+        graph_results = state[
+            "graph_retriever"
+        ].retrieve(
+            query_entities=query_entities
         )
 
-        for triple in graph_results:
+        # ------------------------------
+        # Chunk Retrieval
+        # ------------------------------
+
+        for chunk in graph_results.get(
+            "chunks",
+            []
+        ):
 
             contexts.append(
                 {
-                    "text":
-                    f"""
-{triple["subject"]}
- -- {triple["relation"]} -->
-{triple["object"]}
-""",
+                    "text": chunk.get(
+                        "text",
+                        ""
+                    ),
 
-                    "score":
-                    triple.get(
-                        "entity_score",
+                    "chunk_id": chunk.get(
+                        "chunk_id",
+                        ""
+                    ),
+
+                    "entity": chunk.get(
+                        "entity",
+                        ""
+                    ),
+
+                    "score": chunk.get(
+                        "score",
                         0
                     ),
 
@@ -136,16 +141,48 @@ def retrieve_node(state):
                 }
             )
 
-    # ======================
-    # Sort by score
-    # ======================
+    # =====================================================
+    # Hybrid
+    # Dense + Graph Fusion
+    # =====================================================
+
+    elif mode == "hybrid":
+
+        fusion_results = state[
+            "fusion_retriever"
+        ].retrieve(
+
+            query=state["question"],
+
+            query_entities=query_entities,
+
+            top_k=10
+
+        )
+
+        contexts.extend(
+            fusion_results
+        )
+
+    # =====================================================
+    # Sort
+    # =====================================================
 
     contexts = sorted(
+
         contexts,
-        key=lambda x: x.get("score", 0),
-        reverse=True,
+
+        key=lambda x: x.get(
+            "score",
+            0
+        ),
+
+        reverse=True
+
     )
 
     return {
+
         "retrieved": contexts
+
     }

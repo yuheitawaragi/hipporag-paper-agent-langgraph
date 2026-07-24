@@ -10,8 +10,11 @@ class GraphBuilder:
 
     def __init__(self):
 
-        # Entity Graph
-        self.graph = nx.MultiDiDiGraph() if False else nx.MultiDiGraph()
+        # ---------------------------------
+        # Knowledge Graph
+        # ---------------------------------
+
+        self.graph = nx.MultiDiGraph()
 
     # --------------------------------------------------
     # Entity
@@ -69,12 +72,19 @@ class GraphBuilder:
         node = self.graph.nodes[entity]
 
         if "chunks" not in node:
+
             node["chunks"] = []
 
-        # chunk_idで重複防止
+        # ---------------------------------
+        # 重複防止
+        # ---------------------------------
+
         exists = any(
+
             c["chunk_id"] == chunk["chunk_id"]
+
             for c in node["chunks"]
+
         )
 
         if not exists:
@@ -95,37 +105,57 @@ class GraphBuilder:
         obj = triple.object
         predicate = triple.predicate
 
+        # -----------------------------
+        # Entity
+        # -----------------------------
+
         self.add_entity(
+
             GraphNode(
                 id=subject,
                 name=subject
             )
+
         )
 
         self.add_entity(
+
             GraphNode(
                 id=obj,
                 name=obj
             )
+
         )
 
+        # -----------------------------
+        # Relation
+        # -----------------------------
+
         self.add_relation(
+
             GraphEdge(
                 source=subject,
                 target=obj,
                 relation=predicate
             )
+
         )
 
-        # ------------------------------------------
+        # -----------------------------
         # HippoRAG2
         # Entity -> Chunk Memory
-        # ------------------------------------------
+        # -----------------------------
 
-        if hasattr(triple, "chunk_id"):
+        chunk_id = getattr(
+            triple,
+            "chunk_id",
+            None
+        )
+
+        if chunk_id is not None:
 
             chunk = chunk_dict.get(
-                triple.chunk_id
+                chunk_id
             )
 
             if chunk is not None:
@@ -155,8 +185,11 @@ class GraphBuilder:
         if chunks:
 
             chunk_dict = {
+
                 chunk["chunk_id"]: chunk
+
                 for chunk in chunks
+
             }
 
         for triple in triples:

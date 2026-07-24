@@ -13,6 +13,11 @@ from vectorstore.graph.entity_linker.embedder import EntityEmbedder
 from vectorstore.graph.ppr.pagerank import PersonalizedPageRank
 from vectorstore.graph.retriever.graph_retriever import GraphRetriever
 
+from vectorstore.fusion.fusion_retriever import FusionRetriever
+
+# ★追加
+from vectorstore.reranker.cross_encoder import CrossEncoderReranker
+
 from vectorstore.pdf.pdf_loader import PDFLoader
 from vectorstore.pdf.chunker import PDFChunker
 
@@ -22,6 +27,8 @@ def index_node(state):
     mode = state.get("mode", "rag")
 
     result = {}
+
+    retriever = None
 
     # =====================================
     # Vector Index
@@ -64,36 +71,29 @@ def index_node(state):
             print("=" * 50)
             print(paper["title"])
 
-            # ----------------------------
+            # ---------------------------------
             # PDF全文取得
-            # ----------------------------
+            # ---------------------------------
 
             text = loader.load(
                 paper["pdf_path"]
             )
 
-            # ----------------------------
+            # ---------------------------------
             # Chunk分割
-            # ----------------------------
+            # ---------------------------------
 
             paper_chunks = chunker.split(
                 text
             )
 
-            # ----------------------------
+            # ---------------------------------
             # ChunkごとにOpenIE
-            # ----------------------------
+            # ---------------------------------
 
             for chunk in paper_chunks:
 
                 chunk_id = f"chunk_{chunk_index}"
-
-                chunks.append(
-                    {
-                        "chunk_id": chunk_id,
-                        "text": chunk
-                    }
-                )
 
                 raw = extractor.extract(
                     chunk
@@ -103,13 +103,31 @@ def index_node(state):
                     raw
                 )
 
+                entities = set()
+
                 for triple in paper_triples:
+
+                    entities.add(
+                        triple.subject
+                    )
+
+                    entities.add(
+                        triple.object
+                    )
 
                     triple.chunk_id = chunk_id
 
                     triples.append(
                         triple
                     )
+
+                chunks.append(
+                    {
+                        "chunk_id": chunk_id,
+                        "text": chunk,
+                        "entities": list(entities)
+                    }
+                )
 
                 chunk_index += 1
 
@@ -179,5 +197,42 @@ def index_node(state):
         )
 
         result["graph_retriever"] = graph_retriever
+
+        # =====================================
+        # Dense + Graph Fusion
+        # =====================================
+
+        if mode == "hybrid":
+
+            fusion_method = state.get(
+                "fusion_method",
+                "rrf"
+            )
+
+            fusion_alpha = state.get(
+                "fusion_alpha",
+                0.6
+            )
+
+            # ---------------------------------
+            # CrossEncoder Re-ranker
+            # ---------------------------------
+
+            reranker = CrossEncoderReranker(
+                model_name=state.get(
+                    "reranker_model",
+                    "BAAI/bge-reranker-base"
+                )
+            )
+
+            fusion_retriever = FusionRetriever(
+                dense_retriever=retriever,
+                graph_retriever=graph_retriever,
+                method=fusion_method,
+                alpha=fusion_alpha,
+                reranker=reranker
+            )
+
+            result["fusion_retriever"] = fusion_retriever
 
     return result
