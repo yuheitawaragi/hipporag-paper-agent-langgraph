@@ -130,6 +130,59 @@ class GraphStore:
             for data in edges.values()
         ]
 
+    def get_chunks(self,
+                       entity
+                       ):
+            
+            
+            """
+            Entityに関連するchunk取得
+
+            HippoRAG2:
+            Entity -> Document Chunk
+            """
+
+            if entity not in self.graph:
+                return []
+
+
+            node_data = (
+                self.graph.nodes[entity]
+            )
+
+
+            chunks = (
+                node_data.get(
+                    "chunks",
+                    []
+                )
+            )
+
+
+            return chunks
+
+    def add_chunk_to_entity(
+        self,
+        entity,
+        chunk
+    ):
+        """
+        Entityとchunkの紐付け
+        """
+
+        if entity not in self.graph:
+            self.graph.add_node(
+                entity,
+                chunks=[]
+            )
+
+
+        self.graph.nodes[entity][
+            "chunks"
+        ].append(
+            chunk
+        )
+
 
 
     def nodes(

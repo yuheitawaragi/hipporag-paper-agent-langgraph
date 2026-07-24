@@ -6,44 +6,39 @@ from .schema import (
 )
 
 
-
 class GraphBuilder:
-
 
     def __init__(self):
 
-        # MultiDiGraph:
-        # 同じentity間に複数relationを許可
-        self.graph = nx.MultiDiGraph()
+        # Entity Graph
+        self.graph = nx.MultiDiDiGraph() if False else nx.MultiDiGraph()
 
-
+    # --------------------------------------------------
+    # Entity
+    # --------------------------------------------------
 
     def add_entity(
         self,
         node: GraphNode
     ):
-        """
-        Entity node追加
-        """
 
+        if node.id not in self.graph:
 
-        self.graph.add_node(
-            node.id,
-            name=node.name,
-            entity_type=node.entity_type,
-            **node.metadata
-        )
+            self.graph.add_node(
+                node.id,
+                name=node.name,
+                entity_type=node.entity_type,
+                chunks=[]
+            )
 
-
+    # --------------------------------------------------
+    # Relation
+    # --------------------------------------------------
 
     def add_relation(
         self,
         edge: GraphEdge
     ):
-        """
-        Relation追加
-        """
-
 
         self.graph.add_edge(
             edge.source,
@@ -52,26 +47,53 @@ class GraphBuilder:
             **edge.metadata
         )
 
+    # --------------------------------------------------
+    # Chunk Memory
+    # --------------------------------------------------
 
+    def add_chunk(
+        self,
+        entity,
+        chunk
+    ):
+
+        if entity not in self.graph:
+
+            self.graph.add_node(
+                entity,
+                name=entity,
+                entity_type="entity",
+                chunks=[]
+            )
+
+        node = self.graph.nodes[entity]
+
+        if "chunks" not in node:
+            node["chunks"] = []
+
+        # chunk_idで重複防止
+        exists = any(
+            c["chunk_id"] == chunk["chunk_id"]
+            for c in node["chunks"]
+        )
+
+        if not exists:
+
+            node["chunks"].append(chunk)
+
+    # --------------------------------------------------
+    # Triple
+    # --------------------------------------------------
 
     def add_triple(
         self,
-        triple
+        triple,
+        chunk_dict
     ):
-        """
-        EntityLinker後のTripleをGraphへ追加
-        """
-
 
         subject = triple.subject
-
         obj = triple.object
-
         predicate = triple.predicate
-
-
-
-        # node追加
 
         self.add_entity(
             GraphNode(
@@ -80,16 +102,12 @@ class GraphBuilder:
             )
         )
 
-
         self.add_entity(
             GraphNode(
                 id=obj,
                 name=obj
             )
         )
-
-
-        # edge追加
 
         self.add_relation(
             GraphEdge(
@@ -99,22 +117,53 @@ class GraphBuilder:
             )
         )
 
+        # ------------------------------------------
+        # HippoRAG2
+        # Entity -> Chunk Memory
+        # ------------------------------------------
 
+        if hasattr(triple, "chunk_id"):
+
+            chunk = chunk_dict.get(
+                triple.chunk_id
+            )
+
+            if chunk is not None:
+
+                self.add_chunk(
+                    subject,
+                    chunk
+                )
+
+                self.add_chunk(
+                    obj,
+                    chunk
+                )
+
+    # --------------------------------------------------
+    # Build
+    # --------------------------------------------------
 
     def build(
         self,
-        triples
+        triples,
+        chunks=None
     ):
-        """
-        Triple listからGraph生成
-        """
 
+        chunk_dict = {}
+
+        if chunks:
+
+            chunk_dict = {
+                chunk["chunk_id"]: chunk
+                for chunk in chunks
+            }
 
         for triple in triples:
 
             self.add_triple(
-                triple
+                triple,
+                chunk_dict
             )
-
 
         return self.graph

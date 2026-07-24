@@ -13,15 +13,11 @@ from vectorstore.graph.entity_linker.embedder import EntityEmbedder
 from vectorstore.graph.ppr.pagerank import PersonalizedPageRank
 from vectorstore.graph.retriever.graph_retriever import GraphRetriever
 
+from vectorstore.pdf.pdf_loader import PDFLoader
+from vectorstore.pdf.chunker import PDFChunker
+
 
 def index_node(state):
-
-    # =====================================
-    # mode
-    # rag
-    # hipporag
-    # hybrid
-    # =====================================
 
     mode = state.get("mode", "rag")
 
@@ -53,25 +49,69 @@ def index_node(state):
 
         parser = TripleParser()
 
+        loader = PDFLoader()
+
+        chunker = PDFChunker()
+
         triples = []
+
+        chunks = []
+
+        chunk_index = 0
 
         for paper in state["papers"]:
 
-            raw = extractor.extract(
-                paper["summary"]
-            )
-
-            paper_triples = parser.parse(
-                raw
-            )
-
             print("=" * 50)
-            print(raw)
-            print(paper_triples)
+            print(paper["title"])
 
-            triples.extend(
-                paper_triples
+            # ----------------------------
+            # PDF全文取得
+            # ----------------------------
+
+            text = loader.load(
+                paper["pdf_path"]
             )
+
+            # ----------------------------
+            # Chunk分割
+            # ----------------------------
+
+            paper_chunks = chunker.split(
+                text
+            )
+
+            # ----------------------------
+            # ChunkごとにOpenIE
+            # ----------------------------
+
+            for chunk in paper_chunks:
+
+                chunk_id = f"chunk_{chunk_index}"
+
+                chunks.append(
+                    {
+                        "chunk_id": chunk_id,
+                        "text": chunk
+                    }
+                )
+
+                raw = extractor.extract(
+                    chunk
+                )
+
+                paper_triples = parser.parse(
+                    raw
+                )
+
+                for triple in paper_triples:
+
+                    triple.chunk_id = chunk_id
+
+                    triples.append(
+                        triple
+                    )
+
+                chunk_index += 1
 
         # =====================================
         # Graph構築
@@ -80,7 +120,8 @@ def index_node(state):
         builder = GraphBuilder()
 
         graph = builder.build(
-            triples
+            triples,
+            chunks
         )
 
         print(
